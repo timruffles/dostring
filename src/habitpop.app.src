@@ -1,11 +1,12 @@
 {application, habitpop,
  [
-  {description, ""},
+  {description, "implements the habitantion protocol 1.1"},
   {vsn, "1"},
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  twerl
                  ]},
   {mod, { habitpop_app, []}},
   {env, []}
