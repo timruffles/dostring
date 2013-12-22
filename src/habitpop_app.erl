@@ -46,15 +46,26 @@ on_tweet (State) ->
 
 handle_habits (State) ->
   if 
+    [] = State#tweet_state.habits_with_status ->
+      no_habit_supplied(H,State);
     [H] = State#tweet_state.habits_with_status ->
       single_habit(H,State);
     true ->
       multiple_habits(State)
   end.
 
-single_habit ([Habit,#habits_with_status{streak_days=Streak,latest_days_ago=LastDays,total=N}],State) ->
+habit_event (#habit_status{streak_days=Streak,latest_days_ago=LastDays,total=0}) ->
+  new_habit.
 
-  .
+habit_event (#habit_status{streak_days=Streak,latest_days_ago=0,total=N}) ->
+  same_day.
+
+habit_event (#habit_status{streak_days=Streak,latest_days_ago=1,total=N}) ->
+  continued_streak.
+
+habit_event (#habit_status{streak_days=Streak,latest_days_ago=X,total=N}) ->
+  broke_streak.
+
 
 multiple_habits (State) ->
   .
