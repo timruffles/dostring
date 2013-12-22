@@ -1,5 +1,7 @@
 -module(habitpop_app).
 
+-include_lib("eunit/include/eunit.hrl").
+
 -behaviour(application).
 
 %% Application callbacks
@@ -9,27 +11,37 @@
 %% Application callbacks
 %% ===================================================================
 
+-record(tweet,{username,hashtags,text}).
+
 start(_StartType, _StartArgs) ->
-  inets:start(),
-  ssl:start(),
+  {ok, Redis} = eredis:start_link(),
   io:format("Ok let's get some tweets~n"),
-  spawn(fun go_tweet/0),
   habitpop_sup:start_link().
 
-go_tweet() ->
-  Headers = {os:getenv("TW_C_KEY"), os:getenv("TW_C_SECRET"),os:getenv("TW_T_KEY"), os:getenv("TW_T_SECRET")},
-  {ok, Params} =  stream_client_util:keywords_to_track(["justin"]),
-  Over = stream_client:connect(stream_client_util:filter_url(), Headers, Params, fun(Data) ->
-    Tweet = proplists:get_value(<<"text">>, Data),
-    io:format("Erlang <3: ~s~n", [Tweet])
-  end),
-  case Over of
-    {ok, x} -> io:format("Over and out~p~n",[x]);
-    {error, x} -> io:format("error: ~p~n",[x])
+
+on_tweet(Redis,Tweet,Notifier) ->
+  {ok,Is} = eredis:q(Redis,["ISMEMBER","users",Tweet#tweet.username]),
+  case Is of
+      <<"0">> ->
+        Notifier ! {newuser,Tweet};
+      <<"1">> ->
+        ok
   end,
-  io:format("Done listening..~n").
+  HabitEventsCb = fun (Hashtag) ->
+    {ok,Is} = eredis:q(Redis,["ISMEMBER",string:join([Tweet#tweet.username,"|","habits"]),Hashtag]),
+    case Is of
+      <<"0">> ->
+        {newhabit,Hashtag,Tweet};
+      <<"1">> ->
+        {oldhabit,Hashtag,Tweet}
+    end
+  end,
+  Events = list:filtermap(HabitEventsCb, Tweet#tweet.hashtags),
+  list:foreach(fun (Event) -> Notifier ! Event end,Events).
+   
 
-
+on_tweet_test() ->
+  false = true.
 
 % on tweet ->
 % existing user?
