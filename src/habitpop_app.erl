@@ -12,6 +12,8 @@
 %% ===================================================================
 
 -record(tweet,{username,hashtags,text}).
+-record(tweet_state,{username,habits_with_status,signedup_at}).
+-record(habit_status,{streak_days,latest_days_ago,total}).
 
 start(_StartType, _StartArgs) ->
   {ok, Redis} = eredis:start_link(),
@@ -19,8 +21,7 @@ start(_StartType, _StartArgs) ->
   io:format("Ok let's get some tweets~n"),
   habitpop_sup:start_link().
 
-
-on_tweet(Redis,Tweet,Notifier) ->
+load_tweet_state(Redis,Tweet,Notifier) ->
   {ok,Is} = eredis:q(Redis,["ISMEMBER","users",Tweet#tweet.username]),
   case Is of
       <<"0">> ->
@@ -38,6 +39,25 @@ on_tweet(Redis,Tweet,Notifier) ->
     end
   end,
   list:foreach(HabitEventsCb, Tweet#tweet.hashtags),
+
+on_tweet (State) ->
+  % #tweet_state{username=Username,habits_with_status=Habits,signedup_at=SignupAt} = State,
+  list:flatten([handle_age(State),handle_habits(State)).
+
+handle_habits (State) ->
+  if 
+    [H] = State#tweet_state.habits_with_status ->
+      single_habit(H,State);
+    true ->
+      multiple_habits(State)
+  end.
+
+single_habit ([Habit,#habits_with_status{streak_days=Streak,latest_days_ago=LastDays,total=N}],State) ->
+
+  .
+
+multiple_habits (State) ->
+  .
    
 new_user_message(Tweet) ->
   io_lib:format("~s welcome! Tweet @habitadd when you perform your habit, and we'll track your progress. Try it now",Tweet#tweet.username).
@@ -55,6 +75,9 @@ handle_event() ->
       handle_event()
   end.
 
+handle_new_user (Tweet) ->
+  TweetSender ! {tweet,
+
 on_tweet_test() ->
   false = true.
 
@@ -63,6 +86,8 @@ on_tweet_test() ->
 %   existing habit?
 %     add
 %     check if they're due an event (milestone etc)
+%       increment and check date
+%       chain broken?
 %   else
 %     say hi
 % else
