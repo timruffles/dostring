@@ -13,81 +13,85 @@
 
 -record(tweet,{username,hashtags,text}).
 -record(tweet_state,{username,habits_with_status,signedup_at}).
--record(habit_status,{streak_days,latest_days_ago,total}).
+-record(habit_status,{streak_days,latest_days_ago,total,today_total}).
 
 start(_StartType, _StartArgs) ->
   {ok, Redis} = eredis:start_link(),
   Events = spawn(handle_event),
   io:format("Ok let's get some tweets~n"),
+  habitpop_store:load_tweet_state([],[],[]),
   habitpop_sup:start_link().
-
-load_tweet_state(Redis,Tweet,Notifier) ->
-  {ok,Is} = eredis:q(Redis,["ISMEMBER","users",Tweet#tweet.username]),
-  case Is of
-      <<"0">> ->
-        Notifier ! {newuser,[Tweet]};
-      <<"1">> ->
-        ok
-  end,
-  HabitEventsCb = fun (Hashtag) ->
-    {ok,Is} = eredis:q(Redis,["ISMEMBER",string:join([Tweet#tweet.username,"|","habits"]),Hashtag]),
-    case Is of
-      <<"0">> ->
-        Notifier ! {newhabit,[Hashtag,Tweet]};
-      <<"1">> ->
-        Notifier ! {oldhabit,[Hashtag,Tweet]}
-    end
-  end,
-  list:foreach(HabitEventsCb, Tweet#tweet.hashtags),
 
 on_tweet (State) ->
   % #tweet_state{username=Username,habits_with_status=Habits,signedup_at=SignupAt} = State,
-  list:flatten([handle_age(State),handle_habits(State)).
+  ok.
 
 handle_habits (State) ->
-  if 
-    [] = State#tweet_state.habits_with_status ->
-      no_habit_supplied(H,State);
-    [H] = State#tweet_state.habits_with_status ->
+  case State#tweet_state.habits_with_status of 
+    [] ->
+      no_habit_supplied(State);
+    [H] ->
       single_habit(H,State);
-    true ->
+    Otherwise ->
       multiple_habits(State)
   end.
 
-habit_event (#habit_status{streak_days=Streak,latest_days_ago=LastDays,total=0}) ->
-  new_habit.
-
-habit_event (#habit_status{streak_days=Streak,latest_days_ago=0,total=N}) ->
-  same_day.
-
-habit_event (#habit_status{streak_days=Streak,latest_days_ago=1,total=N}) ->
-  continued_streak.
-
-habit_event (#habit_status{streak_days=Streak,latest_days_ago=X,total=N}) ->
+habit_event (#habit_status{total=0}) ->
+  new_habit;
+habit_event (#habit_status{latest_days_ago=0}) ->
+  same_day;
+habit_event (#habit_status{latest_days_ago=1}) ->
+  continued_streak;
+habit_event (State) ->
   broke_streak.
 
+single_habit_message(new_habit,Habit,_S,Username) ->
+  io_lib:format("@~s great start on your #~s habit!",[Username,Habit]);
+single_habit_message(same_day,Habit,#habit_status{today_total=Today},Username) ->
+  io_lib:format("@~s wow - hitting the #~s habit ~i times today",[Username,Habit,Today]);
+single_habit_message(continued_streak,Habit,#habit_status{streak_days=Streak},Username) ->
+  % TODO int to words
+  ok;
+single_habit_message(broke_streak,Habit,#habit_status{streak_days=Streak},Username) ->
+  % TODO int to words
+  ok.
+
+
+no_habit_supplied(State) ->
+  ok.
+
+single_habit(Habit,State) ->
+  Event = habit_event(Habit),
+  single_habit_message(Event,Habit,State,State#tweet_state.username).
 
 multiple_habits (State) ->
-  .
+  ok.
+
+handle_old_habit (Habit,State) ->
+  ok.
+
+handle_new_habit (Habit,State) ->
+  ok.
    
 new_user_message(Tweet) ->
   io_lib:format("~s welcome! Tweet @habitadd when you perform your habit, and we'll track your progress. Try it now",Tweet#tweet.username).
 
 handle_event() ->
-  receive E of
+  receive
     {newuser,[T]} ->
       handle_new_user(T),
       handle_event();
     {newhabit,[H,T]} ->
       handle_new_habit(H,T),
       handle_event();
-    {newhabit,[H,T]} ->
+    {oldhabit,[H,T]} ->
       handle_old_habit(H,T),
       handle_event()
   end.
 
 handle_new_user (Tweet) ->
-  TweetSender ! {tweet,
+  % TweetSender ! {tweet}.
+  ok.
 
 on_tweet_test() ->
   false = true.
