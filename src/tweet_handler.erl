@@ -3,8 +3,11 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("../include/habitpop_records.hrl").
 
+-export([on_tweet/1]).
+
 on_tweet (State) ->
   % #tweet_state{username=Username,habits_with_status=Habits,signedup_at=SignupAt} = State,
+  io:format("OMG it's almost~n"),
   ok.
 
 handle_habits (State) ->

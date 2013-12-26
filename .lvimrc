@@ -1,1 +1,1 @@
-set wildignore=deps,ebin,rel
+set wildignore=deps,ebin,rel,node_modules

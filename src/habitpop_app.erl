@@ -14,7 +14,9 @@
 
 
 start(_StartType, _StartArgs) ->
-  spawn(fun twitter_in:listen/0),
+  spawn_link(fun () ->
+    twitter_in:listen(fun tweet_handler:on_tweet/1)
+  end),
   habitpop_sup:start_link().
 
 stop(_State) ->

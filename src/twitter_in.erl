@@ -3,10 +3,9 @@
 -include("../include/habitpop_records.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--export([listen/0]).
+-export([listen/1]).
 
-
-listen () ->
+listen (Cb) ->
   io:format("Ok let's get some tweets~n"),
   {ok, Sub} = eredis_sub:start_link(),
   % R = eredis:q(Sub,["KEYS","*"]),
@@ -15,23 +14,27 @@ listen () ->
     ok = eredis_sub:controlling_process(Sub),
     ok = eredis_sub:subscribe(Sub, [<<"tweets">>]),
     io:format("subbed ~p~n",[eredis_sub:channels(Sub)]),
-    receiver(Sub),
+    receiver(Sub,Cb),
     io:format("DONE!!~n")
   end).
 
-receiver(Sub) ->
-    receive
-        Msg ->
-            io:format("received ~p~n", [Msg]),
-            eredis_sub:ack_message(Sub),
-            receiver(Sub)
-    end.
-  
-
+receiver(Sub,Cb) ->
+  receive
+    {message,_,TweetText,_} ->
+      io:format("got tweet ~p~n",[TweetText]),
+      {Tweet} = jiffy:decode(TweetText),
+      Cb(Tweet),
+      io:format("run Cb~n"),
+      eredis_sub:ack_message(Sub),
+      receiver(Sub,Cb);
+    M ->
+      io:format("got sth~n"),
+      eredis_sub:ack_message(Sub),
+      receiver(Sub,Cb)
+  end.
 
 handle_tweet (Tweet) ->
   ok.
-
 
 month_name_to_erlang_month (Name) ->
   case Name of
