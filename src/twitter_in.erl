@@ -23,18 +23,33 @@ receiver(Sub,Cb) ->
     {message,_,TweetText,_} ->
       io:format("got tweet ~p~n",[TweetText]),
       {Tweet} = jiffy:decode(TweetText),
-      Cb(Tweet),
+      [
+        {<<"id">>,Id},
+        {<<"text">>,Text},
+        {<<"created_at">>,CreatedAt},
+        {<<"hashtags">>,Hashtags},
+        {<<"user_id">>,UserId},
+        {<<"screen_name">>,ScreenName}
+      ] = Tweet,
+      Cb(#tweet{
+        id=to_int(Id),
+        username=ScreenName,
+        hashtags=Hashtags,
+        text=Text,
+        gregorian_seconds=parse_twitter_date(binary_to_list(CreatedAt)),
+        user_id=to_int(UserId)}),
       io:format("run Cb~n"),
       eredis_sub:ack_message(Sub),
       receiver(Sub,Cb);
     M ->
-      io:format("got sth~n"),
+      io:format("heard ~p~n",[M]),
       eredis_sub:ack_message(Sub),
       receiver(Sub,Cb)
   end.
 
-handle_tweet (Tweet) ->
-  ok.
+to_int (B) ->
+  {Int,[]} = string:to_integer(binary:bin_to_list(B)),
+  Int.
 
 month_name_to_erlang_month (Name) ->
   case Name of
@@ -56,4 +71,4 @@ month_name_to_erlang_month (Name) ->
 parse_twitter_date (Date) ->
   {_,[_,Month,Day,Hour,Min,Seconds,TimePlus,Timezone,Year],_} = io_lib:fread("~s ~s ~d ~d:~d:~d ~-~d ~d",Date),
   AsDate = {{Year,month_name_to_erlang_month(Month),Day},{Hour,Min,Seconds}},
-  calendar:date_to_gregorian_seconds(AsDate) + TimePlus * Timezone * ?HOUR.
+  calendar:datetime_to_gregorian_seconds(AsDate) + TimePlus * Timezone * ?HOUR.

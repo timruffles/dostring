@@ -37,14 +37,14 @@ twitterWatcher = new TwitterWatcher(twit,redisClient)
 twitterWatcher.on "tweet", (tweet) ->
   # cut down tweet to essentials, ignore retweets
   return if tweet.retweeted
-  redisClient.publish getEnv("TWEET_TOPIC"), {
+  redisClient.publish getEnv("TWEET_TOPIC"), JSON.stringify({
     id: tweet.id_str
     text: tweet.text
     created_at: tweet.created_at
     hashtags: _.pluck(tweet.entities.hashtags,"text")
     user_id: tweet.user.id_str
     screen_name: tweet.user.screen_name
-  }
+  })
 
 twitterWatcher.makeStream getEnv("KEYWORD"), (stream) ->
   logger.info "Listening"

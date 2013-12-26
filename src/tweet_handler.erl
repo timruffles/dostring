@@ -7,7 +7,7 @@
 
 on_tweet (State) ->
   % #tweet_state{username=Username,habits_with_status=Habits,signedup_at=SignupAt} = State,
-  io:format("OMG it's almost~n"),
+  io:format("tweet_handler: ~p~n",[State]),
   ok.
 
 handle_habits (State) ->
