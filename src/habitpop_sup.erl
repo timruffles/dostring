@@ -16,7 +16,7 @@
 %% ===================================================================
 
 start_link() ->
-    io:format("ok sup start_link"),
+    io:format("ok sup start_link~n"),
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================
@@ -24,6 +24,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    io:format("sup init"),
+    io:format("sup init~n"),
     {ok, { {one_for_one, 5, 10}, []} }.
 
