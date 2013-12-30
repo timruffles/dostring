@@ -3,13 +3,14 @@
 -include("../include/habitpop_records.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--export([listen/1]).
+-export([startup/1]).
 
-listen (Cb) ->
-  io:format("Ok let's get some tweets~n"),
+startup (Cb) ->
   {ok, Sub} = eredis_sub:start_link(),
-  % R = eredis:q(Sub,["KEYS","*"]),
-  % io:format("GOT ~p~n",[R]),
+  listen(Sub,Cb).
+
+listen (Sub,Cb) ->
+  io:format("Ok let's get some tweets~n"),
   spawn_link(fun () ->
     ok = eredis_sub:controlling_process(Sub),
     ok = eredis_sub:subscribe(Sub, [<<"tweets">>]),
@@ -34,7 +35,7 @@ receiver(Sub,Cb) ->
       Cb(#tweet{
         id=to_int(Id),
         username=ScreenName,
-        hashtags=Hashtags,
+        hashtags=lists:map(fun binary_to_list/1,Hashtags),
         text=Text,
         gregorian_seconds=parse_twitter_date(binary_to_list(CreatedAt)),
         user_id=to_int(UserId)}),

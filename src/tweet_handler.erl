@@ -6,9 +6,12 @@
 -export([on_tweet/1]).
 
 on_tweet (State) ->
-  % #tweet_state{username=Username,habits_with_status=Habits,signedup_at=SignupAt} = State,
-  io:format("tweet_handler: ~p~n",[State]),
-  ok.
+  case State#tweet_state.signedup_at of
+    newuser ->
+      handle_new_user(State);
+    _Otherwise ->
+      handle_habits(State)
+  end.
 
 handle_habits (State) ->
   case State#tweet_state.habits_with_status of 
@@ -16,69 +19,60 @@ handle_habits (State) ->
       no_habit_supplied(State);
     [H] ->
       single_habit(H,State);
-    Otherwise ->
+    _Otherwise ->
       multiple_habits(State)
   end.
 
-habit_event (#habit_status{total=0}) ->
+habit_event (new_habit) ->
   new_habit;
-habit_event (#habit_status{latest_days_ago=0}) ->
-  same_day;
-habit_event (#habit_status{latest_days_ago=1}) ->
-  continued_streak;
-habit_event (State) ->
-  broke_streak.
+habit_event (#habit_status{broke_streak=true}) ->
+  broke_streak;
+habit_event (_State) ->
+  continued_streak.
 
 single_habit_message(new_habit,Habit,_S,Username) ->
-  io_lib:format("@~s great start on your #~s habit!",[Username,Habit]);
-single_habit_message(same_day,Habit,#habit_status{today_total=Today},Username) ->
-  io_lib:format("@~s wow - hitting the #~s habit ~i times today",[Username,Habit,Today]);
-single_habit_message(continued_streak,Habit,#habit_status{streak_days=Streak},Username) ->
-  % TODO int to words
-  ok;
-single_habit_message(broke_streak,Habit,#habit_status{streak_days=Streak},Username) ->
-  % TODO int to words
-  ok.
+  io_lib:format("@~s great start on your #~s habit! keep tweeting to track it",[Username,Habit]);
+single_habit_message(continued_streak,Habit,_s,Username) ->
+  io_lib:format("@~s your #~s habit is going well",[Username,Habit]);
+single_habit_message(broke_streak,Habit,_s,Username) ->
+  io_lib:format("@~s oh no, your #~s streak is broken! you'll do better next time",[Username,Habit]).
 
-
-no_habit_supplied(State) ->
-  ok.
+no_habit_supplied(#tweet{username=Username}) ->
+  io_lib:format("@~s didn't understand that - you need hashtag habits to track, e.g #gym",[Username]).
 
 single_habit(Habit,State) ->
   Event = habit_event(Habit),
   single_habit_message(Event,Habit,State,State#tweet_state.username).
 
 multiple_habits (State) ->
-  ok.
+  {New,Old} = lists:partition(fun ({_,Age}) -> case Age of new_habit -> true; _O -> false end end,State#tweet_state.habits_with_status),
+  {Kept,Broken} = lists:partition(fun ({_,#habit_status{broke_streak=BS}}) -> BS =:= false end,Old),
+  multiple_habit_message(New,Kept,Broken,State#tweet_state.username,State).
 
-handle_old_habit (Habit,State) ->
-  ok.
 
-handle_new_habit (Habit,State) ->
-  ok.
-   
-new_user_message(Tweet) ->
-  io_lib:format("~s welcome! Tweet @habitadd when you perform your habit, and we'll track your progress. Try it now",Tweet#tweet.username).
+multiple_habit_message ([],[],[_S|BS],Username,_State) ->
+  io_lib:format("@~s keep it up - ~p habits at once is a challenge",[Username,length(BS) + 1]);
+multiple_habit_message ([],[HabitA,HabitB],[],Username,_State) ->
+  io_lib:format("@~s nice one doubling up on your ~s and ~s habits",[Username,HabitA,HabitB]);
+multiple_habit_message ([NewHabit],[OldHabit],[],Username,_State) ->
+  io_lib:format("@~s excellent start on your ~s habit, and continuing ~s",[Username,NewHabit,OldHabit]);
+multiple_habit_message ([],[_OldHabit|_OtherHabits],[],Username,_State) ->
+  io_lib:format("@~s habit combo!",[Username]);
+multiple_habit_message ([_NewHabit,_NewHabitB],[],[],Username,_State) ->
+  io_lib:format("@~s two new habits at once? brave",[Username]);
+multiple_habit_message ([_NewHabit|NewHabits],[],[],Username,_State) ->
+  io_lib:format("@~s ~i new habits at once? good luck!",[Username,length(NewHabits) + 1]);
+multiple_habit_message (_NewHabits,_OldHabits,_BrokenStreaks,Username,_State) ->
+  io_lib:format("@~s keep it up!",[Username]).
 
-handle_event() ->
-  receive
-    {newuser,[T]} ->
-      handle_new_user(T),
-      handle_event();
-    {newhabit,[H,T]} ->
-      handle_new_habit(H,T),
-      handle_event();
-    {oldhabit,[H,T]} ->
-      handle_old_habit(H,T),
-      handle_event()
-  end.
 
 handle_new_user (Tweet) ->
-  % TweetSender ! {tweet}.
-  ok.
+  io_lib:format("@~s welcome! great start on your habits. keep tweeting to track",[Tweet#tweet_state.username]).
 
-on_tweet_test() ->
-  false = true.
+tweet_handler_test () ->
+  T = on_tweet(#tweet_state{username="tim",habits_with_status=[],signedup_at=newuser}),
+  ?assertMatch("@tim" ++ _Rest,T).
+
 
 % on tweet ->
 % existing user?
@@ -91,9 +85,4 @@ on_tweet_test() ->
 %     say hi
 % else
 %   intro message
-
-%% questions:
-% - do hashtags get parsed out already?
-% - do mentions?
-% - need to subscribe for @ mentions
 
