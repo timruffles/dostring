@@ -7,6 +7,15 @@ storage:
 user$USERNAME -> hash with general fields
 USERNAME$habits -> HASH of habits streaks
 
+## Running
+
+Run the app with:
+
+    erl -pa deps/**/ebin -pa ebin
+
+then boot up with
+
+    application:start(habitpop).
 
 ## starting
 
