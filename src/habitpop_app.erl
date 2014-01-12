@@ -14,10 +14,17 @@
 
 
 start(_StartType, _StartArgs) ->
+  {ok, Pid} = pgsql_connection_sup:start_link(),
+  Pg = pgsql_connection:open(
+    os:getenv("PG_HOST"),
+    os:getenv("PG_DB"),
+    os:getenv("PG_USER"),
+    os:getenv("PG_PASS")
+  ),
   {ok, Redis} = eredis:start_link(),
   spawn_link(fun () ->
     twitter_in:startup(fun (Tweet) ->
-      State = habitpop_store:on_tweet(Redis,Tweet),
+      State = habitpop_store:on_tweet(Pg,Redis,Tweet),
       Reply = tweet_handler:on_tweet(State),
       case Reply of
         undefined ->
@@ -38,6 +45,6 @@ habitpop_test () ->
   end,
   application:start(habitpop),
   {ok, Redis} = eredis:start_link(),
-  ok = eredis:q(Redis,["PUBLISH","tweets",MakeTweet()]).
+  {ok, _} = eredis:q(Redis,["PUBLISH","tweets",MakeTweet()]).
 
 

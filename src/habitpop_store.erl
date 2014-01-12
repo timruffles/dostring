@@ -4,18 +4,26 @@
 -include_lib("eunit/include/eunit.hrl").
 
 %%% pg
-%% CREATE TABLE habit_instance ( user_id INT NOT NULL, habit_id varchar(150) NOT NULL, text varchar(150) NOT NULL, happened_at TIMESTAMP NOT NULL );
-%% CREATE TABLE user ( id SERIAL, twitter_id bigint NOT NULL, username varchar(50) NOT NULL );
+%% CREATE TABLE habtoms ( id BIGSERIAL, user_id BIGINT NOT NULL, text varchar(150), happened_at TIMESTAMPTZ NOT NULL, source_tweet_id BIGINT );
+%% CREATE TABLE habits_to_habtoms ( habit varchar(150), habtom_id INT );
 
 %%% redis
 % user$USERNAME -> hash with general fields
 % USERNAME$habits -> HASH of streaks -> [10bitday,6bitCount]
 
--export([on_tweet/2]).
+-export([on_tweet/3]).
 
 % takes in a tweet, and gets the current state from db
-on_tweet(Redis,Tweet) ->
+on_tweet(Pg,Redis,Tweet) ->
+  ok = store_longterm(Pg,Tweet),
   tweet_events(Redis,Tweet).
+
+store_longterm (Pg,#tweet{user_id=UserId,hashtags=Hashtags,text=Text,gregorian_seconds=AtSeconds,id=Id}) ->
+  InsertData = [UserId,Text,AtSeconds,Id],
+  {ok,HabtomId} = pgsql_connection:extended_query("INSERT INTO habtom (user_id,text,happened_at,source_tweet_id) VALUES ($1::bigint,$2::varchar,$3::timestamptz,$4::bigint) RETURNING id",InsertData,Pg),
+  HashtagsForBatch = lists:map(Hashtags,fun (Ht) -> [HabtomId,Ht] end),
+  foo = pgsql_connection:batch_query("INSERT INTO habits_to_habtoms (habit,habtom_id) VALUES ($1::varchar,$2::bigint)",HashtagsForBatch,Pg),
+  ok.
 
 tweet_events(Redis,#tweet{gregorian_seconds=CreatedAt} = Tweet) ->
   {ok,Date} = eredis:q(Redis,["HGET",user_key(Tweet),"signedup_at"]),
@@ -65,7 +73,6 @@ habits_key (Tweet) ->
   io_lib:format("~s|habits",[user_key(Tweet)]).
 
 to_int (B) when is_binary(B) ->
-  io:format("ARG: ~p~n",[B]),
   {Int,[]} = string:to_integer(binary:bin_to_list(B)),
   Int;
 to_int (B) when is_integer(B) ->
