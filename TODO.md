@@ -1,0 +1,3 @@
+- postgres storing of rows
+- twitter out
+- deployment
