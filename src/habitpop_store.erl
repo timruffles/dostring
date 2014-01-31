@@ -19,11 +19,27 @@ on_tweet(Pg,Redis,Tweet) ->
   tweet_events(Redis,Tweet).
 
 store_longterm (Pg,#tweet{user_id=UserId,hashtags=Hashtags,text=Text,gregorian_seconds=AtSeconds,id=Id}) ->
-  InsertData = [UserId,Text,AtSeconds,Id],
-  {ok,HabtomId} = pgsql_connection:extended_query("INSERT INTO habtom (user_id,text,happened_at,source_tweet_id) VALUES ($1::bigint,$2::varchar,$3::timestamptz,$4::bigint) RETURNING id",InsertData,Pg),
-  HashtagsForBatch = lists:map(Hashtags,fun (Ht) -> [HabtomId,Ht] end),
-  foo = pgsql_connection:batch_query("INSERT INTO habits_to_habtoms (habit,habtom_id) VALUES ($1::varchar,$2::bigint)",HashtagsForBatch,Pg),
+  InsertData = [UserId,Text,calendar:gregorian_seconds_to_datetime(AtSeconds),Id],
+  HabtomId = case pgsql_connection:extended_query("INSERT INTO habtoms (user_id,text,happened_at,source_tweet_id) VALUES ($1::bigint,$2::varchar,$3::timestamptz,$4::bigint) RETURNING id",InsertData,Pg) of
+    {{insert,_,_},[{Hid}]} -> Hid;
+    ErrsA -> decode_psql_errors(ErrsA)
+  end,
+  HashtagsForBatch = lists:map(fun (Ht) -> [Ht,HabtomId] end,Hashtags),
+  Res = pgsql_connection:batch_query("INSERT INTO habits_to_habtoms (habit,habtom_id) VALUES ($1::varchar,$2::bigint)",HashtagsForBatch,Pg),
+  ok = assert_inserts(Res),
   ok.
+
+assert_inserts (Res) ->
+  lists:foreach(fun ({{insert,_,_},[]}) ->
+    ok
+  end,Res),
+  ok.
+
+decode_psql_errors (Errors) ->
+  error_logger:info_msg("~s",Errors).
+
+
+
 
 tweet_events(Redis,#tweet{gregorian_seconds=CreatedAt} = Tweet) ->
   {ok,Date} = eredis:q(Redis,["HGET",user_key(Tweet),"signedup_at"]),
