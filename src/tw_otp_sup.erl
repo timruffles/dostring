@@ -54,8 +54,8 @@ pg_config () ->
   [
     Host,
     DatabaseFixed,
-    User,
-    Password
+    binary_to_list(User),
+    binary_to_list(Password)
   ].
 
 redis_config () ->
@@ -70,7 +70,7 @@ redis_config () ->
         Host,
         Port,
         Database,
-        Password
+        binary_to_list(Password)
       ]
   end.
 
