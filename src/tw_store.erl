@@ -64,7 +64,6 @@ store_longterm (Pg,#tweet{user_id=UserId,hashtags=Hashtags,text=Text,gregorian_s
   InsertData = [UserId,Text,calendar:gregorian_seconds_to_datetime(AtSeconds),Id],
   HabtomId = case pgsql_connection:extended_query("INSERT INTO habtoms (user_id,text,happened_at,source_tweet_id) VALUES ($1::bigint,$2::varchar,$3::timestamptz,$4::bigint) RETURNING id",InsertData,Pg) of
     {{insert,_,_},[{Hid}]} -> Hid;
-    ErrsA -> decode_psql_errors(ErrsA)
   end,
   HashtagsForBatch = lists:map(fun (Ht) -> [Ht,HabtomId] end,Hashtags),
   Res = pgsql_connection:batch_query("INSERT INTO habits_to_habtoms (habit,habtom_id) VALUES ($1::varchar,$2::bigint)",HashtagsForBatch,Pg),
@@ -76,9 +75,6 @@ assert_inserts (Res) ->
     ok
   end,Res),
   ok.
-
-decode_psql_errors (Errors) ->
-  error_logger:info_msg("~s",Errors).
 
 tweet_state(Redis,#tweet{gregorian_seconds=CreatedAt} = Tweet) ->
   {ok,Date} = eredis:q(Redis,["HGET",user_key(Tweet),"signedup_at"]),
