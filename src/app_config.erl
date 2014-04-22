@@ -35,8 +35,8 @@ redis_sub_config () ->
   case Conf of
     [Host,Port,_Database] ->
       [Host,Port,""];
-    All = [_,_,_,_] ->
-      All
+    [H,P,_,Pw] ->
+      [H,P,Pw]
   end.
 
 gevenv_default (Var,Def) ->
