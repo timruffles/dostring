@@ -21,6 +21,8 @@ for_tweet (_Tweet,State) ->
 handle_new_user (Tweet) ->
   io_lib:format("@~s welcome! great start on your habits. keep tweeting to track",[Tweet#tweet_state.username]).
 
+%% FIXME whole thing needs a look
+
 handle_habits (State) ->
   case State#tweet_state.habits_with_status of 
     [] ->
@@ -31,20 +33,13 @@ handle_habits (State) ->
       multiple_habits(State)
   end.
 
-single_habit(Habit,State) ->
-  Event = habit_event(Habit),
+single_habit({Habit,Event},State) ->
+  %% FIXME!
   single_habit_message(Event,Habit,State,State#tweet_state.username).
 
 no_habit_supplied(#tweet_state{username=Username}) ->
   % TODO actually probably do nothing
   io_lib:format("@~s didn't understand that - you need hashtag habits to track, e.g #gym",[Username]).
-
-habit_event (new_habit) ->
-  new_habit;
-habit_event (#habit_status{broke_streak=true}) ->
-  broke_streak;
-habit_event (_State) ->
-  continued_streak.
 
 single_habit_message(new_habit,Habit,_S,Username) ->
   io_lib:format("@~s great start on your #~s habit! keep tweeting to track it",[Username,Habit]);
