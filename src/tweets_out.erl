@@ -32,8 +32,8 @@ send_tweet(Tweet) ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(_Fixme) ->
-    {ok, Redis} = eredis:start_link(),
+init({RedisConfig}) ->
+    {ok, Redis} = erlang:apply(eredis,start_link,RedisConfig),
     {ok, Redis}.
 
 handle_call({send_tweet, Tweet}, _From, Redis) ->

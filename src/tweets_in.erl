@@ -12,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0,get_tweet/0]).
+-export([start_link/1,get_tweet/0]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -26,8 +26,8 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
-start_link() ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Config) ->
+    gen_fsm:start_link({local, ?SERVER}, ?MODULE, Config, []).
 
 get_tweet() ->
     gen_fsm:sync_send_event(?SERVER,get_tweet,infinity).
@@ -37,8 +37,8 @@ get_tweet() ->
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
-init(_Args) ->
-    {ok, Sub} = eredis_sub:start_link(),
+init({RedisConfig}) ->
+    {ok, Sub} = erlang:apply(eredis_sub,start_link,RedisConfig),
     ok = eredis_sub:controlling_process(Sub),
     ok = eredis_sub:subscribe(Sub, ["tweets"]),
     ok = eredis_sub:ack_message(Sub),

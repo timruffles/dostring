@@ -22,15 +22,16 @@ start_link() ->
 init([]) ->
     RestartStrategy = {one_for_one, 0, 1},
 
-    StoreConfig = {redis_config(),pg_config()},
-    OutConfig = {redis_config()},
+    StoreConfig = {app_config:redis_config(),app_config:pg_config()},
+    OutConfig = {app_config:redis_config()},
+    InConfig = {app_config:redis_sub_config()},
 
     % application processes
     WorkerSupervisor = {worker_sup, {worker_sup,start_link,[]},
        permanent, brutal_kill, supervisor, [worker_sup]},
     TweetStore = {tw_store, {tw_store,start_link,[StoreConfig]},
       permanent, brutal_kill, worker, [tw_store]},
-    TweetsIn = {tweets_in, {tweets_in,start_link,[]},
+    TweetsIn = {tweets_in, {tweets_in,start_link,[InConfig]},
        permanent, brutal_kill, worker, [tweets_in]},
     TweetsOut = {tweets_out, {tweets_out,start_link,[OutConfig]},
        permanent, brutal_kill, worker, [tweets_out]},
@@ -46,36 +47,4 @@ init([]) ->
       [Pg,
        WorkerSupervisor,TweetStore,TwitterListener,TweetsIn,TweetsOut]} }.
 
-pg_config () ->
-  UrlString = gevenv_default("DB_URL","postgres://habitpop:pass@localhost:5432/habitpop"),
-  {ok,{_Scheme, UserInfo, Host, _Port, Database, _Query}} = http_uri:parse(UrlString),
-  "/" ++ DatabaseFixed = Database,
-  [User,Password] = re:split(UserInfo,":"),
-  [
-    Host,
-    DatabaseFixed,
-    binary_to_list(User),
-    binary_to_list(Password)
-  ].
 
-redis_config () ->
-  UrlString = gevenv_default("REDIS_URL","redis://localhost:6379"),
-  {ok,{_Scheme, UserInfo, Host, Port, _Path, _Query}} = http_uri:parse(UrlString),
-  Database = 0, % default
-  case UserInfo of
-    "" -> [Host,Port,Database];
-    String ->
-      [_User,Password] = re:split(UserInfo,":"),
-      [
-        Host,
-        Port,
-        Database,
-        binary_to_list(Password)
-      ]
-  end.
-
-gevenv_default (Var,Def) ->
-  case os:getenv(Var) of
-    false -> Def;
-    Value -> Value
-  end.
