@@ -1,0 +1,12 @@
+{application, tw_otp,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { tw_otp_app, []}},
+  {env, []}
+ ]}.
