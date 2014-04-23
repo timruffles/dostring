@@ -76,6 +76,7 @@ assert_inserts (Res) ->
   end,Res),
   ok.
 
+-spec tweet_state(any(),#tweet{}) -> #tweet_state{}.
 tweet_state(Redis,#tweet{gregorian_seconds=CreatedAt} = Tweet) ->
   {ok,Date} = eredis:q(Redis,["HGET",user_key(Tweet),"signedup_at"]),
   SignupAt = case Date of
@@ -112,11 +113,11 @@ tweet_state(Redis,#tweet{gregorian_seconds=CreatedAt} = Tweet) ->
         {HabitName,Status}
     end
   end,
-  HabitStatus = lists:map(HabitStatusCb,Tweet#tweet.hashtags),
-  #tweet_state{username=Tweet#tweet.username,habits_with_status=HabitStatus,signedup_at=SignupAt}.
+  HabitStatusList = lists:map(HabitStatusCb,Tweet#tweet.hashtags),
+  #tweet_state{username=Tweet#tweet.username,habits_with_status=HabitStatusList,signedup_at=SignupAt}.
 
 get_streak_length (B) ->
-  byte_size(B) / 4.
+  byte_size(B) div 4.
 
 persist_signup_event (newuser,#tweet{gregorian_seconds=CreatedAt} = Tweet,Redis) ->
   {ok,_} = eredis:q(Redis,["HSET",user_key(Tweet),"signedup_at",CreatedAt]),
