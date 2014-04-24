@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+main() {
+  test
+}
+
+test() {
+  erl -noshell -pa ebin deps/*/ebin -eval "eunit:test(\"${1:-ebin}\", [verbose])" -s init stop
+}
+
+test $@
