@@ -32,16 +32,7 @@ else
 
 ### pg
 
-```sql
-CREATE TABLE habtoms ( id BIGSERIAL, user_id BIGINT NOT NULL, text varchar(150), happened_at TIMESTAMPTZ NOT NULL, source_tweet_id BIGINT );
-
-CREATE TABLE habits_to_habtoms ( habit varchar(150) NOT NULL, habtom_id INT NOT NULL);
-
-CREATE TABLE users ( id SERIAL, twitter_user_id BIGINT NOT NULL, username varchar(50) NOT NULL, created_at TIMESTAMPTZ NOT NULL );
-
-CREATE TABLE streaks ( user_id INT NOT NULL, habit varchar(150) NOT NULL, started_at TIMESTAMPTZ NOT NULL, latest_at TIMESTAMPTZ NOT NULL, broken_at TIMESTAMPTZ NOT NULL);
-
-```
+See tests in [tw_store.erl] for schema.
 
 ## starting
 

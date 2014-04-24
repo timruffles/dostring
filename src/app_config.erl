@@ -1,9 +1,10 @@
 -module(app_config).
 
--export([pg_config/0,redis_config/0,gevenv_default/2,redis_sub_config/0]).
+-export([pg_config/0,pg_config/1,redis_config/0,gevenv_default/2,redis_sub_config/0]).
 
 pg_config() ->
   pg_config(gevenv_default("DB_URL","postgres://habitpop:pass@localhost:5432/habitpop")).
+
 pg_config (UrlString) ->
   {ok,{_Scheme, UserInfo, Host, _Port, Database, _Query}} = http_uri:parse(UrlString),
   "/" ++ DatabaseFixed = Database,
