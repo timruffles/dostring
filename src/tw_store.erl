@@ -146,18 +146,8 @@ assert_inserts (Res) ->
   end,Res),
   ok.
 
-in_clause (List) ->
-  Dequoted = lists:map(fun(S) -> re:replace(S,"'","") end,List),
-  lists:nth(1,listjoin(Dequoted,"'")).
-
 normalise_hashtags (Hts) ->
   lists:map(fun string:to_lower/1,Hts).
-
-
-% lists:join WTF WHERE ARE YOU?!
-listjoin([H], _Sep) -> [H];
-listjoin([H | T], Sep) ->
-  [H | lists:map(fun(S) -> [Sep, S] end, T)].
 
 
 %
