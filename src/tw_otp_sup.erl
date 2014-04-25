@@ -22,7 +22,7 @@ start_link() ->
 init([]) ->
     RestartStrategy = {one_for_one, 0, 1},
 
-    StoreConfig = {app_config:redis_config(),app_config:pg_config()},
+    StoreConfig = {app_config:pg_config()},
     OutConfig = {app_config:redis_config()},
     InConfig = {app_config:redis_sub_config()},
 
