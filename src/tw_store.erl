@@ -78,7 +78,12 @@ retrieve_user_habit_states (Pg,#tweet{user_id=UserId,hashtags=Hashtags,gregorian
   UserAgeInSeconds = retrieve_user_state(Pg,UserId),
   TweetAt = calendar:gregorian_seconds_to_datetime(CreatedAt),
   HabitStatuses = lists:map(fun(Habit) ->
-    case pgsql_connection:param_query(
+    AllTime = case pgsql_connection:param_query(
+      "select count(*) from streaks where user_id=? AND habit=?",[UserId,Habit],Pg) of
+      {selected,[]} -> 0;
+      {selected,[{N}]} -> N
+    end,
+    State = case pgsql_connection:param_query(
         "select length, (latest_at < date(?) - interval '1 day') AS broken
           FROM streaks
           WHERE
@@ -93,7 +98,8 @@ retrieve_user_habit_states (Pg,#tweet{user_id=UserId,hashtags=Hashtags,gregorian
       {selected,[{Length,false}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=0};
       {selected,[{Length,true},_]} -> #habit_status{broke_streak=true,streak_length=0,previous_streak_length=Length};
       {selected,[{Length,false},{OldLength,_}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=OldLength}
-    end
+    end,
+    State#habit_status{new_habit=AllTime == 0}
   end,Hashtags),
   {UserAgeInSeconds,HabitStatuses}.
 
@@ -170,7 +176,8 @@ functional_test_() ->
       [?_test(
        begin
           % simple ensure can see a streak
-          tweet(["gym"],{1,10}),
+          FirstState = tweet(["gym"],{1,10}),
+          assert_new_habit(FirstState,"gym"),
           StateAfterDay1 = tweet(["gym","sandwich"],{1,12}),
           %?debugVal(StateAfterDay1),
           assert_streak(1,StateAfterDay1,"gym"),
@@ -240,6 +247,10 @@ fail(Str) ->
 assert_streak(N,#tweet_state{habits_with_status=Hs},Name) ->
   St = find_habit_state(Hs,Name),
   ?assertEqual(N,St#habit_status.streak_length).
+
+assert_new_habit(#tweet_state{habits_with_status=Hs},Name) ->
+  St = find_habit_state(Hs,Name),
+  ?assertEqual(true,St#habit_status.new_habit).
 
 assert_broken(#tweet_state{habits_with_status=Hs},Name) ->
   St = find_habit_state(Hs,Name),
