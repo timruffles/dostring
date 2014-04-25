@@ -98,7 +98,7 @@ retrieve_user_habit_states (Pg,#tweet{user_id=UserId,hashtags=Hashtags,gregorian
   {UserAgeInSeconds,HabitStatuses}.
 
 retrieve_user_state(Pg,UserId) ->
-  {selected,User} = pgsql_connection:param_query("select created_at from users where twitter_user_id = ? limit 1", [UserId], Pg),
+  {selected,User} = pgsql_connection:param_query("select created_at from users where id = ? limit 1", [UserId], Pg),
   UserAgeInSeconds = case User of
     [] -> 0;
     [{CreatedAt}] -> calendar:datetime_to_gregorian_seconds(CreatedAt)
@@ -137,7 +137,7 @@ persist_habtoms (Pg,#tweet{user_id=UserId,hashtags=Hashtags,text=Text,gregorian_
 persist_signup_event (Pg,#tweet{user_id=UserId,gregorian_seconds=CreatedAt,username=Username} = Tweet) ->
   InsertData = [UserId,Username,calendar:gregorian_seconds_to_datetime(CreatedAt)],
   {{insert,_,_},[{_Id}]} = pgsql_connection:extended_query(
-    "INSERT INTO users (twitter_user_id,username,created_at) VALUES ($1::bigint,$2::varchar,$3::timestamptz) RETURNING id",InsertData,Pg),
+    "INSERT INTO users (id,username,created_at) VALUES ($1::bigint,$2::varchar,$3::timestamptz) RETURNING id",InsertData,Pg),
   ok.
 
 assert_inserts (Res) ->
@@ -203,7 +203,7 @@ functional_test_() ->
 
 
 tweet (Hashtags,Ts) ->
-  tweet(Hashtags,Ts,"bobo",1234001).
+  tweet(Hashtags,Ts,"bobo",2369204930).
 tweet (Hashtags,{Day,Hour},Username,UserId) ->
   Secs = calendar:datetime_to_gregorian_seconds({{2014,1,Day},{Hour,56,44}}),
   Tweet = #tweet{username=Username,text="Some shiz",hashtags=Hashtags,user_id=UserId,id=random:uniform(1000000000),gregorian_seconds=Secs},
@@ -221,8 +221,8 @@ initialize_db(Pg) ->
     "DROP TABLE IF EXISTS habtoms, habits_to_habtoms, users, streaks",
     "CREATE TABLE habtoms ( id BIGSERIAL, user_id BIGINT NOT NULL, text varchar(150), happened_at TIMESTAMPTZ NOT NULL, source_tweet_id BIGINT );",
     "CREATE TABLE habits_to_habtoms ( habit varchar(150) NOT NULL, habtom_id INT NOT NULL);",
-    "CREATE TABLE users ( id SERIAL, twitter_user_id BIGINT NOT NULL, username varchar(50) NOT NULL, created_at TIMESTAMPTZ NOT NULL );",
-    "CREATE TABLE streaks ( id SERIAL, user_id INT NOT NULL, habit varchar(150) NOT NULL, started_at DATE NOT NULL, latest_at TIMESTAMPTZ, length INT NOT NULL DEFAULT 1);",
+    "CREATE TABLE users ( id BIGINT NOT NULL, username varchar(50) NOT NULL, created_at TIMESTAMPTZ NOT NULL );",
+    "CREATE TABLE streaks ( id SERIAL, user_id BIGINT NOT NULL, habit varchar(150) NOT NULL, started_at DATE NOT NULL, latest_at TIMESTAMPTZ, length INT NOT NULL DEFAULT 1);",
     "CREATE UNIQUE INDEX streaks_uid_habit_started_at ON streaks (user_id,habit,started_at)"
   ]).
 
