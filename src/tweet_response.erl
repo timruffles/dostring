@@ -9,7 +9,8 @@
 -type habit_state_name() :: new_habit | continued_streak | broke_streak.
 
 %% PUBLIC API
--spec for_tweet(any(),#tweet_state{}) -> {atom(),string()}.
+%FIXME return type a bit ugly
+-spec for_tweet(any(),#tweet_state{}) -> {atom(),string() | noreply}.
 for_tweet (_Tweet,State) ->
   case State#tweet_state.signedup_at of
     newuser ->
@@ -39,13 +40,15 @@ no_habit_supplied(#tweet_state{username=Username}) ->
   % TODO actually probably do nothing
   io_lib:format("@~s didn't understand that - you need hashtag habits to track, e.g #gym",[Username]).
 
--spec single_habit(habit_status_pair(),string()) -> string().
+-spec single_habit(habit_status_pair(),string()) -> string() | noreply.
 single_habit({Habit,#habit_status{new_habit=true}},Username) ->
   io_lib:format("@~s great start on your #~s habit! keep tweeting to track it",[Username,Habit]);
 single_habit({Habit,#habit_status{broke_streak=false,count_today=1}},Username) ->
   io_lib:format("@~s keeping the #~s string growing",[Username,Habit]);
 single_habit({Habit,#habit_status{broke_streak=false,count_today=3}},Username) ->
   io_lib:format("@~s #~s hat-trick!",[Username,Habit]);
+single_habit({Habit,#habit_status{broke_streak=false,count_today=N}},Username) ->
+  noreply;
 single_habit({Habit,#habit_status{broke_streak=true,previous_streak_length=N}},Username) ->
   io_lib:format("@~s new ~s string, last time you managed ~i days",[Username,Habit]).
 
