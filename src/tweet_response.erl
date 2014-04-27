@@ -42,10 +42,12 @@ no_habit_supplied(#tweet_state{username=Username}) ->
 -spec single_habit(habit_status_pair(),string()) -> string().
 single_habit({Habit,#habit_status{new_habit=true}},Username) ->
   io_lib:format("@~s great start on your #~s habit! keep tweeting to track it",[Username,Habit]);
-single_habit({Habit,#habit_status{broke_streak=false}},Username) ->
-  io_lib:format("@~s your #~s habit is going well",[Username,Habit]);
-single_habit({Habit,#habit_status{broke_streak=true}},Username) ->
-  io_lib:format("@~s oh no, your #~s streak is broken! you'll do better next time",[Username,Habit]).
+single_habit({Habit,#habit_status{broke_streak=false,count_today=1}},Username) ->
+  io_lib:format("@~s keeping the #~s string growing",[Username,Habit]);
+single_habit({Habit,#habit_status{broke_streak=false,count_today=3}},Username) ->
+  io_lib:format("@~s #~s hat-trick!",[Username,Habit]);
+single_habit({Habit,#habit_status{broke_streak=true,previous_streak_length=N}},Username) ->
+  io_lib:format("@~s new ~s string, last time you managed ~i days",[Username,Habit]).
 
 -spec multiple_habits(#tweet_state{}) -> string().
 multiple_habits (State) ->
@@ -77,6 +79,6 @@ multiple_habit_message (_NewHabits,_OldHabits,_BrokenStreaks,Username,_State) ->
 
 tweet_response_test () ->
   {tweet,T} = for_tweet("foo",#tweet_state{username="tim",habits_with_status=[],signedup_at=newuser}),
-  ?assertMatch("@tim" ++ _Rest,T).
+  ?assertMatch("@tim" ++ _Rest,lists:flatten(T)).
 
 
