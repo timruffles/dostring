@@ -77,29 +77,8 @@ persist_and_retrieve_user_state(Pg,#tweet{gregorian_seconds=CreatedAt,hashtags=H
 retrieve_user_habit_states (Pg,#tweet{user_id=UserId,hashtags=Hashtags,gregorian_seconds=CreatedAt}) ->
   UserAgeInSeconds = retrieve_user_state(Pg,UserId),
   TweetAt = calendar:gregorian_seconds_to_datetime(CreatedAt),
-  HabitStatuses = lists:map(fun(Habit) ->
-    AllTime = case pgsql_connection:param_query(
-      "select count(*) from streaks where user_id=? AND habit=?",[UserId,Habit],Pg) of
-      {selected,[]} -> 0;
-      {selected,[{N}]} -> N
-    end,
-    State = case pgsql_connection:param_query(
-        "select length, (latest_at < date(?) - interval '1 day') AS broken
-          FROM streaks
-          WHERE
-          user_id=?
-          AND habit=?
-          AND latest_at < date(?)
-          ORDER BY latest_at DESC
-          limit 2",
-        [TweetAt,UserId,Habit,TweetAt], Pg) of
-      {selected,[]} -> #habit_status{broke_streak=false,streak_length=1,previous_streak_length=0};
-      {selected,[{Length,true}]} -> #habit_status{broke_streak=true,streak_length=0,previous_streak_length=Length};
-      {selected,[{Length,false}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=0};
-      {selected,[{Length,true},_]} -> #habit_status{broke_streak=true,streak_length=0,previous_streak_length=Length};
-      {selected,[{Length,false},{OldLength,_}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=OldLength}
-    end,
-    State#habit_status{new_habit=AllTime == 0}
+  HabitStatuses = lists:map(fun(Ht) ->
+    retrieve_habit_state(Pg,UserId,Ht,TweetAt)
   end,Hashtags),
   {UserAgeInSeconds,HabitStatuses}.
 
@@ -109,6 +88,40 @@ retrieve_user_state(Pg,UserId) ->
     [] -> 0;
     [{CreatedAt}] -> calendar:datetime_to_gregorian_seconds(CreatedAt)
   end.
+
+retrieve_habit_state (Pg,UserId,Habit,TweetAt) ->
+  AllTime = case pgsql_connection:param_query(
+    "select count(*) from streaks where user_id=? AND habit=?",[UserId,Habit],Pg) of
+    {selected,[]} -> 0;
+    {selected,[{N}]} -> N
+  end,
+  CountToday = case pgsql_connection:param_query(
+    "SELECT count(*)
+     FROM habtoms h
+     WHERE user_id=$1
+       AND date(happened_at)=date($3)
+       AND exists (SELECT 1 from habits_to_habtoms h2h WHERE h2h.habtom_id = h.id AND h2h.habit = $2)",
+    [UserId,Habit,TweetAt],Pg) of
+    {selected,[]} -> 1;
+    {selected,[{Nt}]} -> Nt + 1
+  end,
+  State = case pgsql_connection:param_query(
+      "select length, (latest_at < date($1) - interval '1 day') AS broken
+        FROM streaks
+        WHERE
+        user_id=$2
+        AND habit=$3
+        AND latest_at < date($1)
+        ORDER BY latest_at DESC
+        limit 2",
+      [TweetAt,UserId,Habit], Pg) of
+    {selected,[]} -> #habit_status{broke_streak=false,streak_length=1,previous_streak_length=0};
+    {selected,[{Length,true}]} -> #habit_status{broke_streak=true,streak_length=0,previous_streak_length=Length};
+    {selected,[{Length,false}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=0};
+    {selected,[{Length,true},_]} -> #habit_status{broke_streak=true,streak_length=0,previous_streak_length=Length};
+    {selected,[{Length,false},{OldLength,_}]} -> #habit_status{broke_streak=false,streak_length=Length+1,previous_streak_length=OldLength}
+  end,
+  State#habit_status{new_habit=AllTime == 0,count_today=CountToday}.
 
 -spec persist_new_states_from_tweet(any(),#tweet{},#tweet_state{}) -> ok.
 persist_new_states_from_tweet (Pg,Tweet,#tweet_state{signedup_at=Age}) ->
@@ -182,6 +195,7 @@ functional_test_() ->
           %?debugVal(StateAfterDay1),
           assert_streak(1,StateAfterDay1,"gym"),
           assert_not_broken(StateAfterDay1,"gym"),
+          assert_count_today(2,StateAfterDay1,"gym"),
 
           % streak continues, not affected by case
           StateAfterDay2 = tweet(["GYM"],{2,12}),
@@ -203,7 +217,8 @@ functional_test_() ->
           StateAfterDay10 = tweet(["gym"],{10,10}),
           %?debugVal(StateAfterDay10),
           assert_broken(StateAfterDay10,"gym"),
-          assert_previous_streak_length(1,StateAfterDay10,"gym")
+          assert_previous_streak_length(1,StateAfterDay10,"gym"),
+          assert_count_today(1,StateAfterDay10,"gym")
        end)]
     end
   }.
@@ -247,6 +262,10 @@ fail(Str) ->
 assert_streak(N,#tweet_state{habits_with_status=Hs},Name) ->
   St = find_habit_state(Hs,Name),
   ?assertEqual(N,St#habit_status.streak_length).
+
+assert_count_today(N,#tweet_state{habits_with_status=Hs},Name) ->
+  St = find_habit_state(Hs,Name),
+  ?assertEqual(N,St#habit_status.count_today).
 
 assert_new_habit(#tweet_state{habits_with_status=Hs},Name) ->
   St = find_habit_state(Hs,Name),
