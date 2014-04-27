@@ -20,6 +20,8 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
+    RestartPeriodSeconds = 300,
+    RestartsAllowed = 5,
     RestartStrategy = {one_for_one, 0, 1},
 
     StoreConfig = {app_config:pg_config()},
