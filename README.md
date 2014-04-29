@@ -1,6 +1,6 @@
 # Twhabit
 
-This twitter bot allows you to easily build up habits.
+A twitter bot to motivate yourself to continue a new habit by the [don't break the chain](http://www.writersstore.com/dont-break-the-chain-jerry-seinfeld/) method. Simply tweet @twhabit with the habits #hashtagged.
 
 ## Running
 
