@@ -1,6 +1,6 @@
-# Twhabit
+# DoString
 
-A twitter bot to motivate yourself to continue a new habit by the [don't break the chain](http://www.writersstore.com/dont-break-the-chain-jerry-seinfeld/) method. Simply tweet @twhabit with the habits #hashtagged.
+A twitter bot to motivate yourself to continue a new habit by the [don't break the chain](http://www.writersstore.com/dont-break-the-chain-jerry-seinfeld/) method. Simply tweet @dostring with the habits #hashtagged.
 
 ## Running
 
